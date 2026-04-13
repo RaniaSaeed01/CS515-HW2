@@ -1,0 +1,12 @@
+run,label,test_accuracy
+resnet_pre=True_mode=finetune_freeze=False_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Finetune Unfrozen,0.9504
+resnet_pre=True_mode=scratch_freeze=False_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Scratch (modified conv),0.9404
+vgg_pre=True_mode=finetune_freeze=True_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Finetune Frozen,0.8978
+resnet_pre=False_mode=finetune_freeze=True_ls=0.1_kd=False_T=4.0_alpha=0.7_st=full,ResNet (LS=0.1),0.8676
+resnet_pre=False_mode=finetune_freeze=True_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,ResNet (teacher),0.8562
+vgg_pre=True_mode=scratch_freeze=False_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Scratch (modified conv),0.8557
+mobilenet_pre=False_mode=finetune_freeze=True_ls=0.0_kd=True_T=4.0_alpha=0.7_st=true_only,MobileNet (true-only KD),0.8466
+resnet_pre=True_mode=finetune_freeze=True_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Finetune Frozen,0.8039
+vgg_pre=True_mode=finetune_freeze=False_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,Finetune Unfrozen,0.8037
+cnn_pre=False_mode=finetune_freeze=True_ls=0.0_kd=True_T=4.0_alpha=0.7_st=full,SimpleCNN (KD),0.7114
+cnn_pre=False_mode=finetune_freeze=True_ls=0.0_kd=False_T=4.0_alpha=0.7_st=full,SimpleCNN (baseline),0.7086
