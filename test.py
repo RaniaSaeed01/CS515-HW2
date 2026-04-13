@@ -76,7 +76,7 @@ def evaluate_corrupted(
     std  = np.array(params.std)
     data = data.astype(np.float32) / 255.0
     data = (data - mean) / std
-    data = torch.tensor(data).permute(0, 3, 1, 2)
+    data = torch.tensor(data).float().permute(0, 3, 1, 2)
     labels = torch.tensor(labels).long()
 
     dataset = torch.utils.data.TensorDataset(data, labels)
