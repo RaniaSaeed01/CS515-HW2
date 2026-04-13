@@ -15,6 +15,7 @@ from models.ResNet import ResNet, BasicBlock
 from models.mobilenet import MobileNetV2
 from train import run_training
 from test  import run_test
+from test import evaluate_corrupted, evaluate_adversarial
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -127,10 +128,10 @@ def load_teacher(params: Params, device: torch.device) -> nn.Module:
 
 def main() -> None:
     """
-    Entry point for the HW1b pipeline.
+    Entry point for the HW2 pipeline.
 
-    Handles transfer learning (finetune and scratch modes) and
-    knowledge distillation (standard KD and true-class-only soft targets).
+    Handles transfer learning, knowledge distillation, corrupted
+    evaluation, adversarial evaluation, and Grad-CAM visualization.
     Auto-generates a descriptive run name from key hyperparameters.
     """
     params = get_params()
@@ -145,6 +146,7 @@ def main() -> None:
     print(f"Dataset: {params.dataset}  |  Model: {params.model}")
     print(f"Pretrained: {params.pretrained}  |  Transfer mode: {params.transfer_mode}")
     print(f"Label smoothing: {params.label_smoothing}  |  Distillation: {params.distillation}")
+    print(f"AugMix: {params.augmix}  |  Mode: {params.mode}")
 
     run_name = (
         f"{params.model}"
@@ -153,6 +155,7 @@ def main() -> None:
         f"_freeze={params.freeze_backbone}"
         f"_ls={params.label_smoothing}"
         f"_kd={params.distillation}"
+        f"_augmix={params.augmix}"
         f"_T={params.temperature}"
         f"_alpha={params.alpha}"
         f"_st={params.soft_target_mode}"
@@ -170,6 +173,23 @@ def main() -> None:
 
     if params.mode in ("test", "both"):
         run_test(model, params, device, run_name=run_name)
+
+    if params.mode == "test_corrupted":
+        model.load_state_dict(torch.load(params.save_path, map_location=device))
+        model.eval()
+        evaluate_corrupted(model, params, device, run_name=run_name)
+
+    if params.mode == "test_adversarial":
+        model.load_state_dict(torch.load(params.save_path, map_location=device))
+        model.eval()
+        evaluate_adversarial(model, params, device, run_name=run_name)
+
+    if params.mode == "visualize_adv":
+        model.load_state_dict(torch.load(params.save_path, map_location=device))
+        model.eval()
+        from visualize_adv import run_gradcam, run_tsne
+        run_gradcam(model, params, device)
+        run_tsne(model, params, device)
 
 
 if __name__ == "__main__":

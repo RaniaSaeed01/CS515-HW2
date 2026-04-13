@@ -16,11 +16,12 @@ def get_transforms(params: Params, train: bool = True) -> transforms.Compose:
 
     For CIFAR-10 training, applies random cropping and horizontal flipping.
     When using pretrained models in finetune mode, resizes images to 224x224
-    to match ImageNet input dimensions.
+    to match ImageNet input dimensions. When augmix is enabled, applies
+    AugMix augmentation to improve robustness against distribution shifts.
 
     Args:
         params: Configuration dataclass containing dataset, mean, std,
-                pretrained, and transfer_mode settings.
+                pretrained, transfer_mode, and augmix settings.
         train: If True, apply training augmentations.
 
     Returns:
@@ -39,6 +40,13 @@ def get_transforms(params: Params, train: bool = True) -> transforms.Compose:
         if train:
             t = [transforms.RandomCrop(32, padding=4),
                  transforms.RandomHorizontalFlip()]
+            if params.augmix:
+                t.append(transforms.AugMix(
+                    severity=params.augmix_severity,
+                    mixture_width=params.augmix_width,
+                    chain_depth=params.augmix_depth,
+                    alpha=params.augmix_alpha,
+                ))
             if resize:
                 t.append(transforms.Resize(224))
             t += [transforms.ToTensor(), transforms.Normalize(mean, std)]

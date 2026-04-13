@@ -31,6 +31,155 @@ def count_flops(model: nn.Module, params: Params) -> None:
         print("ptflops not installed. Run: pip install ptflops")
 
 
+def evaluate_corrupted(
+    model:    nn.Module,
+    params:   Params,
+    device:   torch.device,
+    run_name: str = "run",
+) -> None:
+    """
+    Evaluate model on CIFAR-10-C corrupted test set.
+
+    Loads a specific corruption type and severity level from the
+    CIFAR-10-C dataset, runs inference, and reports accuracy.
+
+    Args:
+        model: Trained model to evaluate.
+        params: Configuration dataclass containing corruption settings.
+        device: Device to run on.
+        run_name: Label for saved results CSV.
+    """
+    import csv
+    import numpy as np
+    import os
+
+    data_path   = os.path.join(params.cifar10c_dir,
+                               f"{params.corruption_type}.npy")
+    labels_path = os.path.join(params.cifar10c_dir, "labels.npy")
+
+    if not os.path.exists(data_path):
+        print(f"CIFAR-10-C not found at {params.cifar10c_dir}. "
+              f"Download from https://zenodo.org/record/2535967")
+        return
+
+    data   = np.load(data_path)
+    labels = np.load(labels_path)
+
+    # Each file has 5 severity levels stacked: 10000 images each
+    start  = (params.corruption_severity - 1) * 10000
+    end    = start + 10000
+    data   = data[start:end]
+    labels = labels[start:end]
+
+    # Normalize to match training preprocessing
+    mean = np.array(params.mean)
+    std  = np.array(params.std)
+    data = data.astype(np.float32) / 255.0
+    data = (data - mean) / std
+    data = torch.tensor(data).permute(0, 3, 1, 2)
+    labels = torch.tensor(labels).long()
+
+    dataset = torch.utils.data.TensorDataset(data, labels)
+    loader  = torch.utils.data.DataLoader(
+        dataset, batch_size=params.batch_size, shuffle=False)
+
+    model.eval()
+    correct, n = 0, 0
+    with torch.no_grad():
+        for imgs, lbls in loader:
+            imgs, lbls = imgs.to(device), lbls.to(device)
+            preds = model(imgs).argmax(1)
+            correct += preds.eq(lbls).sum().item()
+            n       += imgs.size(0)
+
+    acc = correct / n
+    print(f"\n=== Corrupted Test ({params.corruption_type} "
+          f"severity={params.corruption_severity}) ===")
+    print(f"Accuracy: {acc:.4f}  ({correct}/{n})")
+
+    os.makedirs("results", exist_ok=True)
+    csv_path = (f"results/{run_name}_corrupted_"
+                f"{params.corruption_type}_s{params.corruption_severity}.csv")
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["corruption", "severity", "accuracy"])
+        writer.writerow([params.corruption_type,
+                         params.corruption_severity, f"{acc:.4f}"])
+    print(f"Saved: {csv_path}")
+
+
+def evaluate_adversarial(
+    model:    nn.Module,
+    params:   Params,
+    device:   torch.device,
+    run_name: str = "run",
+) -> None:
+    """
+    Evaluate model robustness against PGD adversarial attacks.
+
+    Runs PGD-20 with both L-inf (eps=4/255) and L2 (eps=0.25) norms
+    and reports accuracy on adversarial examples.
+
+    Args:
+        model: Trained model to evaluate.
+        params: Configuration dataclass containing attack settings.
+        device: Device to run on.
+        run_name: Label for saved results CSV.
+    """
+    import csv
+    import os
+    from attacks import pgd_attack_linf, pgd_attack_l2
+    from torchvision import datasets
+
+    os.makedirs("results", exist_ok=True)
+
+    tf      = get_transforms(params, train=False)
+    test_ds = datasets.CIFAR10(params.data_dir, train=False,
+                               download=True, transform=tf)
+    loader  = torch.utils.data.DataLoader(
+        test_ds, batch_size=64, shuffle=False,
+        num_workers=params.num_workers)
+
+    model.eval()
+    results = {}
+
+    for attack_type in ["pgd_linf", "pgd_l2"]:
+        correct, n = 0, 0
+        print(f"\nRunning {attack_type}...")
+
+        for imgs, labels in loader:
+            imgs, labels = imgs.to(device), labels.to(device)
+
+            if attack_type == "pgd_linf":
+                adv = pgd_attack_linf(
+                    model, imgs, labels,
+                    params.pgd_eps_linf,
+                    params.pgd_alpha_linf,
+                    params.pgd_steps, device)
+            else:
+                adv = pgd_attack_l2(
+                    model, imgs, labels,
+                    params.pgd_eps_l2,
+                    params.pgd_alpha_l2,
+                    params.pgd_steps, device)
+
+            with torch.no_grad():
+                preds = model(adv).argmax(1)
+            correct += preds.eq(labels).sum().item()
+            n       += imgs.size(0)
+
+        acc = correct / n
+        results[attack_type] = acc
+        print(f"  {attack_type} accuracy: {acc:.4f}")
+
+    csv_path = f"results/{run_name}_adversarial.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["attack", "accuracy"])
+        for k, v in results.items():
+            writer.writerow([k, f"{v:.4f}"])
+    print(f"Saved: {csv_path}")
+
 @torch.no_grad()
 def run_test(
     model:    nn.Module,

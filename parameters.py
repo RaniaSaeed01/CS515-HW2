@@ -45,6 +45,20 @@ class Params:
         save_path: File path to save the best model weights.
         log_interval: Batch interval for printing training progress.
         mode: Pipeline mode ('train', 'test', or 'both').
+        augmix: Whether to use AugMix augmentation during training.
+        augmix_severity: Severity of AugMix augmentations (1-10).
+        augmix_width: Number of augmentation chains in AugMix.
+        augmix_depth: Depth of each chain (-1 for random).
+        augmix_alpha: Mixing coefficient for AugMix.
+        pgd_eps_linf: L-infinity epsilon for PGD attack.
+        pgd_eps_l2: L2 epsilon for PGD attack.
+        pgd_steps: Number of PGD iterations.
+        pgd_alpha_linf: Step size for L-inf PGD.
+        pgd_alpha_l2: Step size for L2 PGD.
+        corrupted: Whether to evaluate on CIFAR-10-C.
+        corruption_type: Type of corruption to evaluate on.
+        corruption_severity: Severity level of corruption (1-5).
+        cifar10c_dir: Path to CIFAR-10-C dataset directory.
     """
 
     # Data
@@ -80,6 +94,26 @@ class Params:
     alpha:            float = 0.7
     soft_target_mode: str   = "full"
 
+    # AugMix
+    augmix:              bool  = False
+    augmix_severity:     int   = 3
+    augmix_width:        int   = 3
+    augmix_depth:        int   = -1
+    augmix_alpha:        float = 1.0
+
+    # Adversarial attacks
+    pgd_eps_linf:        float = 4/255
+    pgd_eps_l2:          float = 0.25
+    pgd_steps:           int   = 20
+    pgd_alpha_linf:      float = 1/255
+    pgd_alpha_l2:        float = 0.05
+
+    # CIFAR-10-C
+    corrupted:           bool  = False
+    corruption_type:     str   = "fog"
+    corruption_severity: int   = 1
+    cifar10c_dir:        str   = "./data/CIFAR-10-C"
+
     # Training
     epochs:              int   = 20
     batch_size:          int   = 128
@@ -110,7 +144,12 @@ def get_params() -> Params:
     parser = argparse.ArgumentParser(description="HW1b: Transfer Learning and Knowledge Distillation")
 
     # Data / model
-    parser.add_argument("--mode",    choices=["train", "test", "both"],                     default="both")
+    parser.add_argument("--mode", choices=[
+        "train", "test", "both",
+        "test_corrupted",
+        "test_adversarial",
+        "visualize_adv",
+    ], default="both")
     parser.add_argument("--dataset", choices=["mnist", "cifar10"],                          default="cifar10")
     parser.add_argument("--model",   choices=["mlp", "cnn", "vgg", "resnet", "mobilenet"], default="resnet")
     parser.add_argument("--vgg_depth",     choices=["11", "13", "16", "19"],                default="16")
@@ -133,6 +172,26 @@ def get_params() -> Params:
     parser.add_argument("--temperature",      type=float, default=4.0)
     parser.add_argument("--alpha",            type=float, default=0.7)
     parser.add_argument("--soft_target_mode", choices=["full", "true_only"], default="full")
+
+    # AugMix
+    parser.add_argument("--augmix",             action="store_true", default=False)
+    parser.add_argument("--augmix_severity",    type=int,   default=3)
+    parser.add_argument("--augmix_width",       type=int,   default=3)
+    parser.add_argument("--augmix_depth",       type=int,   default=-1)
+    parser.add_argument("--augmix_alpha",       type=float, default=1.0)
+
+    # Adversarial attacks
+    parser.add_argument("--pgd_eps_linf",       type=float, default=4/255)
+    parser.add_argument("--pgd_eps_l2",         type=float, default=0.25)
+    parser.add_argument("--pgd_steps",          type=int,   default=20)
+    parser.add_argument("--pgd_alpha_linf",     type=float, default=1/255)
+    parser.add_argument("--pgd_alpha_l2",       type=float, default=0.05)
+
+    # CIFAR-10-C
+    parser.add_argument("--corrupted",          action="store_true", default=False)
+    parser.add_argument("--corruption_type",    type=str,   default="fog")
+    parser.add_argument("--corruption_severity",type=int,   default=1)
+    parser.add_argument("--cifar10c_dir",       type=str,   default="./data/CIFAR-10-C")
 
     # Training
     parser.add_argument("--epochs",      type=int,   default=20)
@@ -185,4 +244,18 @@ def get_params() -> Params:
         device=args.device,
         save_path=args.save_path,
         mode=args.mode,
+        augmix=args.augmix,
+        augmix_severity=args.augmix_severity,
+        augmix_width=args.augmix_width,
+        augmix_depth=args.augmix_depth,
+        augmix_alpha=args.augmix_alpha,
+        pgd_eps_linf=args.pgd_eps_linf,
+        pgd_eps_l2=args.pgd_eps_l2,
+        pgd_steps=args.pgd_steps,
+        pgd_alpha_linf=args.pgd_alpha_linf,
+        pgd_alpha_l2=args.pgd_alpha_l2,
+        corrupted=args.corrupted,
+        corruption_type=args.corruption_type,
+        corruption_severity=args.corruption_severity,
+        cifar10c_dir=args.cifar10c_dir,
     )
