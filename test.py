@@ -74,9 +74,11 @@ def evaluate_corrupted(
     # Normalize to match training preprocessing
     mean = np.array(params.mean)
     std  = np.array(params.std)
-    data = data.astype(np.float32) / 255.0
-    data = (data - mean) / std
-    data = torch.tensor(data).float().permute(0, 3, 1, 2)
+    data   = data.astype(np.float32) / 255.0
+    mean_np = np.array(params.mean).reshape(1, 1, 1, 3)
+    std_np  = np.array(params.std).reshape(1, 1, 1, 3)
+    data   = (data - mean_np) / std_np
+    data   = torch.tensor(data).float().permute(0, 3, 1, 2)
     labels = torch.tensor(labels).long()
 
     dataset = torch.utils.data.TensorDataset(data, labels)
