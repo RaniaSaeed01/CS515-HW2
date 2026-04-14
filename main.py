@@ -108,8 +108,8 @@ def load_teacher(params: Params, device: torch.device) -> nn.Module:
     """
     Load a saved teacher model for knowledge distillation.
 
-    Builds a ResNet with the same layer config as the teacher, loads saved
-    weights, freezes all parameters, and sets eval mode.
+    Builds a torchvision ResNet18, loads saved weights, freezes all
+    parameters, and sets eval mode.
 
     Args:
         params: Configuration dataclass containing teacher_path.
@@ -118,7 +118,9 @@ def load_teacher(params: Params, device: torch.device) -> nn.Module:
     Returns:
         Frozen teacher model in eval mode.
     """
-    teacher = ResNet(BasicBlock, params.resnet_layers, num_classes=params.num_classes)
+    from torchvision import models
+    teacher = models.resnet18(weights=None)
+    teacher.fc = nn.Linear(teacher.fc.in_features, params.num_classes)
     teacher.load_state_dict(torch.load(params.teacher_path, map_location=device))
     for p in teacher.parameters():
         p.requires_grad = False
