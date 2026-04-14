@@ -1,0 +1,3 @@
+attack,accuracy
+pgd_linf,0.0724
+pgd_l2,0.4554
