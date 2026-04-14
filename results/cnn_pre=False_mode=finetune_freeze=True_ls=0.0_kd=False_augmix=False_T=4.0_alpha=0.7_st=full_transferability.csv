@@ -1,0 +1,3 @@
+model,accuracy
+teacher_on_teacher_adv,0.1018
+student_on_teacher_adv,0.2182
