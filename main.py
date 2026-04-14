@@ -186,6 +186,24 @@ def main() -> None:
         model.eval()
         evaluate_adversarial(model, params, device, run_name=run_name)
 
+    if params.mode == "transferability":
+        from torchvision import models
+        # Load teacher
+        teacher_model = models.resnet18(weights=None)
+        teacher_model.fc = nn.Linear(teacher_model.fc.in_features, params.num_classes)
+        teacher_model.load_state_dict(torch.load(params.teacher_path, map_location=device))
+        teacher_model = teacher_model.to(device)
+        teacher_model.eval()
+
+        # Load student
+        model.load_state_dict(torch.load(params.save_path, map_location=device))
+        model.eval()
+
+        from test import evaluate_transferability
+        evaluate_transferability(teacher_model, model, params, device, run_name=run_name)
+
+
+
     if params.mode == "visualize_adv":
         model.load_state_dict(torch.load(params.save_path, map_location=device))
         model.eval()

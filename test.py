@@ -180,6 +180,84 @@ def evaluate_adversarial(
             writer.writerow([k, f"{v:.4f}"])
     print(f"Saved: {csv_path}")
 
+
+def evaluate_transferability(
+    teacher:  nn.Module,
+    student:  nn.Module,
+    params:   Params,
+    device:   torch.device,
+    run_name: str = "run",
+) -> None:
+    """
+    Test adversarial transferability from teacher to student model.
+
+    Generates PGD-20 L-inf adversarial examples using the teacher model,
+    then evaluates both teacher and student accuracy on those examples.
+    This tests whether adversarial examples crafted for one model
+    transfer to fool a different model.
+
+    Args:
+        teacher: The source model used to generate adversarial examples.
+        student: The target model to test transferability on.
+        params: Configuration dataclass containing attack settings.
+        device: Device to run on.
+        run_name: Label for saved results CSV.
+    """
+    import csv
+    import os
+    from attacks import pgd_attack_linf
+    from torchvision import datasets
+
+    os.makedirs("results", exist_ok=True)
+
+    tf      = get_transforms(params, train=False)
+    test_ds = datasets.CIFAR10(params.data_dir, train=False,
+                               download=True, transform=tf)
+    loader  = torch.utils.data.DataLoader(
+        test_ds, batch_size=64, shuffle=False,
+        num_workers=params.num_workers)
+
+    teacher.eval()
+    student.eval()
+
+    teacher_correct, student_correct, n = 0, 0, 0
+
+    print("\nRunning adversarial transferability test...")
+    for imgs, labels in loader:
+        imgs, labels = imgs.to(device), labels.to(device)
+
+        # Generate adversarial examples using teacher
+        adv = pgd_attack_linf(
+            teacher, imgs, labels,
+            params.pgd_eps_linf,
+            params.pgd_alpha_linf,
+            params.pgd_steps, device)
+
+        # Test on both teacher and student
+        with torch.no_grad():
+            teacher_preds = teacher(adv).argmax(1)
+            student_preds = student(adv).argmax(1)
+
+        teacher_correct += teacher_preds.eq(labels).sum().item()
+        student_correct += student_preds.eq(labels).sum().item()
+        n += imgs.size(0)
+
+    teacher_acc = teacher_correct / n
+    student_acc = student_correct / n
+
+    print(f"\n=== Adversarial Transferability Results ===")
+    print(f"  Teacher accuracy on teacher adv examples: {teacher_acc:.4f}")
+    print(f"  Student accuracy on teacher adv examples: {student_acc:.4f}")
+
+    csv_path = f"results/{run_name}_transferability.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["model", "accuracy"])
+        writer.writerow(["teacher_on_teacher_adv", f"{teacher_acc:.4f}"])
+        writer.writerow(["student_on_teacher_adv", f"{student_acc:.4f}"])
+    print(f"Saved: {csv_path}")
+
+
 @torch.no_grad()
 def run_test(
     model:    nn.Module,

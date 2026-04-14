@@ -149,7 +149,9 @@ def get_params() -> Params:
         "test_corrupted",
         "test_adversarial",
         "visualize_adv",
+        "transferability",
     ], default="both")
+
     parser.add_argument("--dataset", choices=["mnist", "cifar10"],                          default="cifar10")
     parser.add_argument("--model",   choices=["mlp", "cnn", "vgg", "resnet", "mobilenet"], default="resnet")
     parser.add_argument("--vgg_depth",     choices=["11", "13", "16", "19"],                default="16")
